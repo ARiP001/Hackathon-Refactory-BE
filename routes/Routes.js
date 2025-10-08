@@ -9,7 +9,7 @@ const productRoute = require("./productRoute");
 
 // Routes
 router.use("/auth", authRoute);
-router.use("/products", productRoute)
+router.use("/products", productRoute);
 
 // Protected routes
 router.get("/users", authenticate, listUsers);

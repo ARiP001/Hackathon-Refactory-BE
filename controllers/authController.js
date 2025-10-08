@@ -293,13 +293,69 @@ async function listUsers(req, res, next) {
   }
 }
 
-module.exports = {
-  register,
-  login,
-  refresh,
-  listUsers,
-  verifyEmail,
-  resendVerification,
-  updateProfile,
-  upload,
-};
+
+async function reverseGeocode(req, res) {
+  try {
+    const { lat, lon } = req.query || {};
+    if (!lat || !lon) {
+      return res.status(400).json({ message: 'lat and lon are required' });
+    }
+    const key = process.env.LOCATIONIQ_KEY;
+    if (!key) {
+      return res.status(500).json({ message: 'LOCATIONIQ_KEY is not configured' });
+    }
+    const url = `https://us1.locationiq.com/v1/reverse?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=json`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: 'LocationIQ error', details: text });
+    }
+    const data = await response.json();
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ message: 'Failed to fetch location', error: err.message });
+  }
+}
+
+async function patchBaseLocation(req, res, next) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const { lat, lon } = req.body || {};
+    if (!lat || !lon) {
+      return res.status(400).json({ message: 'lat and lon are required' });
+    }
+    const key = process.env.LOCATIONIQ_KEY;
+    if (!key) {
+      return res.status(500).json({ message: 'LOCATIONIQ_KEY is not configured' });
+    }
+    const url = `https://us1.locationiq.com/v1/reverse?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=json`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: 'LocationIQ error', details: text });
+    }
+    const data = await response.json();
+
+    const user = await User.findOne({ where: { uuid: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const parts = [];
+    if (data?.address?.city) parts.push(data.address.city);
+    if (data?.address?.state) parts.push(data.address.state);
+    if (data?.address?.country) parts.push(data.address.country);
+    const display = data?.display_name || parts.join(', ');
+
+    const newBase = display ? [display] : [];
+    await user.update({ base_location: newBase });
+    return res.json({ message: 'Base location updated', base_location: user.base_location, raw: data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login, refresh, listUsers, verifyEmail, resendVerification, updateProfile, upload, reverseGeocode, patchBaseLocation };
