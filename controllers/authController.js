@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const nodemailer = require("nodemailer");
 const multer = require("multer");
-const cloudinary = require("../config/cloudinary");
+const { uploadBufferToCloudinary } = require("../services/uploadService");
 const User = require("../models/User");
 
 // Email transporter (Gmail)
@@ -37,17 +37,7 @@ async function updateProfile(req, res, next) {
       req.file ||
       (Array.isArray(req.files) && req.files.length > 0 ? req.files[0] : null);
     if (fileObj) {
-      // Upload buffer to Cloudinary
-      const uploadResult = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "profiles" },
-          (err, result) => {
-            if (err) return reject(err);
-            resolve(result);
-          }
-        );
-        stream.end(fileObj.buffer);
-      });
+      const uploadResult = await uploadBufferToCloudinary(fileObj.buffer, { folder: 'profiles' });
       profileUrl = uploadResult.secure_url;
     }
 
@@ -92,7 +82,7 @@ function signAccessToken(user) {
   return jwt.sign(
     { sub: user.uuid, email: user.email, username: user.username },
     process.env.JWT_ACCESS_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "15d" }
   );
 }
 
