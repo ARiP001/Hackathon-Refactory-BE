@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+const cloudinary = require('../config/cloudinary');
 const User = require('../models/User');
 
 // Email transporter (Gmail)
@@ -11,6 +13,59 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+
+// Multer in-memory storage for single file 'profile_pict'
+const upload = multer({ storage: multer.memoryStorage() });
+
+async function updateProfile(req, res, next) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const user = await User.findOne({ where: { uuid: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { username, email, password, gender, base_location, phone_number } = req.body || {};
+
+    let profileUrl = user.profile_pict;
+    const fileObj = req.file || (Array.isArray(req.files) && req.files.length > 0 ? req.files[0] : null);
+    if (fileObj) {
+      // Upload buffer to Cloudinary
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'profiles' }, (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+        stream.end(fileObj.buffer);
+      });
+      profileUrl = uploadResult.secure_url;
+    }
+
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (password) updateData.password = password; // will be hashed by hooks
+    if (gender) updateData.gender = gender;
+    if (typeof base_location !== 'undefined') {
+      try {
+        updateData.base_location = Array.isArray(base_location) ? base_location : JSON.parse(base_location);
+      } catch (_) {
+        return res.status(400).json({ message: 'base_location must be an array of strings' });
+      }
+    }
+    if (phone_number) updateData.phone_number = phone_number;
+    if (profileUrl) updateData.profile_pict = profileUrl;
+
+    await user.update(updateData);
+    return res.json({ message: 'Profile updated', user: { uuid: user.uuid, username: user.username, email: user.email, gender: user.gender, base_location: user.base_location, profile_pict: user.profile_pict, phone_number: user.phone_number } });
+  } catch (err) {
+    next(err);
+  }
+}
 
 function signAccessToken(user) {
   return jwt.sign(
@@ -181,4 +236,4 @@ async function listUsers(req, res, next) {
   }
 }
 
-module.exports = { register, login, refresh, listUsers, verifyEmail, resendVerification };
+module.exports = { register, login, refresh, listUsers, verifyEmail, resendVerification, updateProfile, upload };
