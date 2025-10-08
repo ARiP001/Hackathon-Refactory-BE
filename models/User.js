@@ -34,7 +34,7 @@ const User = sequelize.define('User', {
     allowNull: false
   },
   gender: {
-    type: DataTypes.STRING,
+    type: DataTypes.ENUM('male', 'female', 'other'),
     allowNull: true
   },
   base_location: {
@@ -48,6 +48,11 @@ const User = sequelize.define('User', {
   },
   phone_number: {
     type: DataTypes.STRING,
+    allowNull: true
+  }
+  ,
+  refresh_token: {
+    type: DataTypes.TEXT,
     allowNull: true
   }
 }, {

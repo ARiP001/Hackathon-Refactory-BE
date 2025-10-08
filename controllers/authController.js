@@ -1,6 +1,16 @@
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const nodemailer = require('nodemailer');
 const User = require('../models/User');
+
+// Email transporter (Gmail)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 function signAccessToken(user) {
   return jwt.sign(
@@ -21,8 +31,8 @@ function signRefreshToken(user) {
 async function register(req, res, next) {
   try {
     const { username, email, password, gender, phone_number } = req.body || {};
-    if (!username || !email || !password || !gender || !phone_number) {
-      return res.status(400).json({ message: 'username, email, password, gender, and phone_number are required' });
+    if (!username || !email || !password || !phone_number) {
+      return res.status(400).json({ message: 'username, email, password, and phone_number are required' });
     }
 
     const existingByEmail = await User.findOne({ where: { email } });
@@ -37,9 +47,25 @@ async function register(req, res, next) {
 
     const uuid = uuidv4();
     const user = await User.create({ uuid, username, email, password, gender, phone_number });
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-    return res.status(201).json({ uuid: user.uuid, username: user.username, email: user.email, accessToken, refreshToken });
+
+    // Issue email verification token (valid 1 hour)
+    const emailToken = jwt.sign(
+      { email: user.email },
+      process.env.JWT_EMAIL_SECRET || process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    const verifyLink = `http://localhost:${process.env.PORT}/auth/verify?token=${emailToken}`;
+
+    await transporter.sendMail({
+      from: `Verifikasi Akun <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Verifikasi Email Akun Kamu',
+      html: `<p>Halo ${user.username}, klik link berikut untuk verifikasi akun kamu:</p>
+             <a href="${verifyLink}">${verifyLink}</a>
+             <p>(Link berlaku 1 jam)</p>`,
+    });
+
+    return res.status(201).json({ message: 'Email verifikasi terkirim! Cek inbox kamu.' });
   } catch (err) {
     next(err);
   }
@@ -59,8 +85,12 @@ async function login(req, res, next) {
     if (!valid) {
       return res.status(401).json({ message: 'invalid credentials' });
     }
+    if (!user.verif_email) {
+      return res.status(403).json({ message: 'Silakan verifikasi email terlebih dahulu' });
+    }
     const accessToken = signAccessToken(user);
     const refreshToken = signRefreshToken(user);
+    await user.update({ refresh_token: refreshToken });
     return res.json({ uuid: user.uuid, username: user.username, email: user.email, accessToken, refreshToken });
   } catch (err) {
     next(err);
@@ -85,6 +115,63 @@ async function refresh(req, res) {
   }
 }
 
+async function verifyEmail(req, res, next) {
+  try {
+    const { token } = req.query || {};
+    if (!token) {
+      return res.status(400).json({ message: 'Verification token is required' });
+    }
+    const payload = jwt.verify(token, process.env.JWT_EMAIL_SECRET || process.env.JWT_SECRET);
+    const user = await User.findOne({ where: { email: payload.email } });
+    if (!user) {
+      return res.status(404).send('User tidak ditemukan');
+    }
+    if (user.verif_email) {
+      return res.status(200).send(`<h2>Email ${payload.email} sudah terverifikasi</h2>`);
+    }
+    await user.update({ verif_email: true });
+    return res.status(200).send(`<h2>Email ${payload.email} berhasil diverifikasi 🎉</h2>`);
+  } catch (err) {
+    return res.status(400).send('Link verifikasi tidak valid atau sudah kadaluarsa');
+  }
+}
+
+async function resendVerification(req, res, next) {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    if (user.verif_email) {
+      return res.status(400).json({ message: 'Email is already verified' });
+    }
+
+    const emailToken = jwt.sign(
+      { email: user.email },
+      process.env.JWT_EMAIL_SECRET || process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    const verifyLink = `http://localhost:${process.env.PORT}/auth/verify?token=${emailToken}`;
+
+    await transporter.sendMail({
+      from: `Verifikasi Akun <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'Verifikasi Email Akun Kamu (Ulang)',
+      html: `<p>Halo ${user.username}, ini link verifikasi terbaru:</p>
+             <a href="${verifyLink}">${verifyLink}</a>
+             <p>(Link berlaku 1 jam)</p>`,
+    });
+
+    return res.status(200).json({ message: 'Email verifikasi dikirim ulang. Cek inbox kamu.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listUsers(req, res, next) {
   try {
     const users = await User.findAll({ attributes: ['uuid', 'username', 'email'] });
@@ -94,4 +181,4 @@ async function listUsers(req, res, next) {
   }
 }
 
-module.exports = { register, login, refresh, listUsers };
+module.exports = { register, login, refresh, listUsers, verifyEmail, resendVerification };
