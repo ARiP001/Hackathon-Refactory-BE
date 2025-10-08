@@ -7,11 +7,13 @@ const router = express.Router();
 const authRoute = require("./authRoute");
 const productRoute = require("./productRoute");
 const cartRoute = require("./cartRoute");
+const transactionRoute = require("./transactionRoute");
 
 // Routes
 router.use("/auth", authRoute);
 router.use("/products", productRoute);
 router.use("/cart", cartRoute);
+router.use("/transactions", transactionRoute);
 
 // Protected routes
 router.get("/users", authenticate, listUsers);
