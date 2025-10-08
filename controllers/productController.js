@@ -1,10 +1,4 @@
 const Product = require("../models/Product");
-const { v4: uuidv4 } = require("uuid");
-const multer = require("multer");
-const { uploadBufferToCloudinary } = require("../services/uploadService");
-
-// Accept multiple files: highlight_img (single) and detail_img (multiple)
-const upload = multer({ storage: multer.memoryStorage() });
 
 const getAllProducts = async (req, res) => {
   try {
@@ -41,32 +35,55 @@ const createProduct = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const { name, description, category_id, price, condition, total_qty } = req.body || {};
+    const { name, description, category_id, price, condition, total_qty } =
+      req.body || {};
+
     if (!name || !category_id || !price || !condition || !total_qty) {
-      return res.status(400).json({ message: "name, category_id, price, condition, total_qty are required" });
+      return res.status(400).json({
+        message: "name, category_id, price, condition, total_qty are required",
+      });
     }
 
-    let highlightUrl = typeof req.body.highlight_img === 'string' ? req.body.highlight_img : null;
-    let detailUrls = Array.isArray(req.body.detail_img) ? req.body.detail_img : [];
+    let highlightUrl =
+      typeof req.body.highlight_img === "string"
+        ? req.body.highlight_img
+        : null;
+    let detailUrls = Array.isArray(req.body.detail_img)
+      ? req.body.detail_img
+      : [];
 
     // Handle file uploads
     // When using upload.fields, files are grouped by fieldname
-    const highlightFile = Array.isArray(req.files?.highlight_img) ? req.files.highlight_img[0] : undefined;
-    const detailFiles = Array.isArray(req.files?.detail_img) ? req.files.detail_img : [];
+    const highlightFile = Array.isArray(req.files?.highlight_img)
+      ? req.files.highlight_img[0]
+      : undefined;
+    const detailFiles = Array.isArray(req.files?.detail_img)
+      ? req.files.detail_img
+      : [];
 
     if (highlightFile) {
-      const uploaded = await uploadBufferToCloudinary(highlightFile.buffer, { folder: 'products/highlight' });
+      const uploaded = await uploadBufferToCloudinary(highlightFile.buffer, {
+        folder: "products/highlight",
+      });
       highlightUrl = uploaded.secure_url;
     }
 
     if (detailFiles && detailFiles.length > 0) {
-      const uploads = await Promise.all(detailFiles.map(f => uploadBufferToCloudinary(f.buffer, { folder: 'products/detail' })));
-      detailUrls = uploads.map(u => u.secure_url);
-    } else if (typeof req.body.detail_img === 'string') {
+      const uploads = await Promise.all(
+        detailFiles.map((f) =>
+          uploadBufferToCloudinary(f.buffer, { folder: "products/detail" })
+        )
+      );
+      detailUrls = uploads.map((u) => u.secure_url);
+    } else if (typeof req.body.detail_img === "string") {
       // allow comma-separated string
-      detailUrls = req.body.detail_img.split(',').map(s => s.trim()).filter(Boolean);
+      detailUrls = req.body.detail_img
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
 
+    // Prepare data
     const productPayload = {
       product_id: uuidv4(),
       uuid: userUuid,
@@ -77,13 +94,32 @@ const createProduct = async (req, res) => {
       detail_img: detailUrls,
       price: Number(price),
       condition,
-      status: 'available',
-      total_qty: Number(total_qty),
-      avail_qty: Number(total_qty),
+      highlight_img,
+      detail_img,
+      total_qty,
     };
 
+    // Validation
+    if (
+      !name ||
+      !description ||
+      !category_id ||
+      !price ||
+      !condition ||
+      !highlight_img ||
+      !detail_img ||
+      !total_qty
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Create
     const product = await Product.create(productPayload);
-    return res.status(201).json({ message: 'success', data: product });
+    // Return
+    return res.status(201).json({
+      message: "success",
+      data: product,
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -104,7 +140,9 @@ const updateProduct = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
     if (product.uuid !== requesterUserId) {
-      return res.status(403).json({ message: "Forbidden: you are not the owner of this product" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: you are not the owner of this product" });
     }
 
     // Handle file uploads for images
@@ -112,17 +150,27 @@ const updateProduct = async (req, res) => {
     let detailUrls = product.detail_img || []; // Keep existing if no new files
 
     // Handle highlight image upload
-    const highlightFile = Array.isArray(req.files?.highlight_img) ? req.files.highlight_img[0] : undefined;
+    const highlightFile = Array.isArray(req.files?.highlight_img)
+      ? req.files.highlight_img[0]
+      : undefined;
     if (highlightFile) {
-      const uploaded = await uploadBufferToCloudinary(highlightFile.buffer, { folder: 'products/highlight' });
+      const uploaded = await uploadBufferToCloudinary(highlightFile.buffer, {
+        folder: "products/highlight",
+      });
       highlightUrl = uploaded.secure_url;
     }
 
     // Handle detail images upload
-    const detailFiles = Array.isArray(req.files?.detail_img) ? req.files.detail_img : [];
+    const detailFiles = Array.isArray(req.files?.detail_img)
+      ? req.files.detail_img
+      : [];
     if (detailFiles && detailFiles.length > 0) {
-      const uploads = await Promise.all(detailFiles.map(f => uploadBufferToCloudinary(f.buffer, { folder: 'products/detail' })));
-      detailUrls = uploads.map(u => u.secure_url);
+      const uploads = await Promise.all(
+        detailFiles.map((f) =>
+          uploadBufferToCloudinary(f.buffer, { folder: "products/detail" })
+        )
+      );
+      detailUrls = uploads.map((u) => u.secure_url);
     }
 
     // Prepare update data
@@ -161,7 +209,9 @@ const deleteProduct = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
     if (product.uuid !== requesterUserId) {
-      return res.status(403).json({ message: "Forbidden: you are not the owner of this product" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: you are not the owner of this product" });
     }
     // Delete
     await product.destroy();
@@ -191,14 +241,22 @@ const getProductsByUserId = async (req, res) => {
   }
 };
 
-const { Op } = require('sequelize');
+const { Op } = require("sequelize");
 
 const getProductsBySearch = async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
-    const categoryId = req.query.category_id ? String(req.query.category_id).trim() : undefined;
-    const minPrice = req.query.min_price !== undefined ? Number(req.query.min_price) : undefined;
-    const maxPrice = req.query.max_price !== undefined ? Number(req.query.max_price) : undefined;
+    const q = (req.query.q || "").trim();
+    const categoryId = req.query.category_id
+      ? String(req.query.category_id).trim()
+      : undefined;
+    const minPrice =
+      req.query.min_price !== undefined
+        ? Number(req.query.min_price)
+        : undefined;
+    const maxPrice =
+      req.query.max_price !== undefined
+        ? Number(req.query.max_price)
+        : undefined;
 
     const where = {};
     if (q) {
@@ -209,8 +267,10 @@ const getProductsBySearch = async (req, res) => {
     }
     if (minPrice !== undefined || maxPrice !== undefined) {
       where.price = {};
-      if (!Number.isNaN(minPrice) && minPrice !== undefined) where.price[Op.gte] = minPrice;
-      if (!Number.isNaN(maxPrice) && maxPrice !== undefined) where.price[Op.lte] = maxPrice;
+      if (!Number.isNaN(minPrice) && minPrice !== undefined)
+        where.price[Op.gte] = minPrice;
+      if (!Number.isNaN(maxPrice) && maxPrice !== undefined)
+        where.price[Op.lte] = maxPrice;
     }
 
     const products = await Product.findAll({ where });
@@ -228,5 +288,5 @@ module.exports = {
   deleteProduct,
   getProductsByUserId,
   getProductsBySearch,
-  upload,
+  // upload,
 };
