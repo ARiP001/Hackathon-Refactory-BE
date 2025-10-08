@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const { v4: uuidv4 } = require("uuid");
 
 const getAllProducts = async (req, res) => {
   try {
@@ -42,6 +43,21 @@ const createProduct = async (req, res) => {
       total_qty,
     } = req.body;
 
+    // Bikin data form
+    const uuid = uuidv4();
+    const data = {
+      uuid,
+      name,
+      description,
+      category_id,
+      price,
+      condition,
+      highlight_img,
+      detail_img,
+      total_qty,
+      avail_qty: total_qty,
+    };
+
     // Validation
     if (
       !name ||
@@ -57,7 +73,7 @@ const createProduct = async (req, res) => {
     }
 
     // Create
-    const product = await Product.create(req.body);
+    const product = await Product.create(data);
     // Return
     return res.status(201).json({
       message: "success",
