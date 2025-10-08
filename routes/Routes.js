@@ -9,6 +9,11 @@ const productRoute = require("./productRoute");
 const cartRoute = require("./cartRoute");
 const transactionRoute = require("./transactionRoute");
 
+// Health check endpoint
+router.get("/", (req, res) => {
+  res.send("BE ready dipake");
+});
+
 // Routes
 router.use("/auth", authRoute);
 router.use("/products", productRoute);
