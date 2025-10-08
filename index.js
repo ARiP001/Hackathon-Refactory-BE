@@ -1,6 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const sequelize = require('./config/database');
+// Ensure models are loaded and associations are defined before sync
+require('./models/User');
+require('./models/Category');
+require('./models/Product');
+require('./models/Rating');
+require('./models/Cart');
+require('./models/History');
+require('./models/associations');
 const routes = require('./routes/Routes');
 
 const app = express();
