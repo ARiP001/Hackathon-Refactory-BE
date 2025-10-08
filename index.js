@@ -17,7 +17,8 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5000',
-    'aduhay-sulitnyo-v2-0.hackathon.sev-2.com'
+    'http://aduhay-sulitnyo-v2-0.hackathon.sev-2.com',
+    'https://aduhay-sulitnyo-v2-0.hackathon.sev-2.com'
   ],
   credentials: true
 }));
