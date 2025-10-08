@@ -28,7 +28,10 @@ router.post(
 router.get("/search", getProductsBySearch); // Search Product
 router.get("/user/:user_id", getProductsByUserId); // Get Products By User (public)
 router.get("/:id", getProductById); // Get Products Detail
-router.put("/:id", authenticate, updateProduct); // Update Product (owner only)
+router.put("/:id", authenticate, upload.fields([
+  { name: 'highlight_img', maxCount: 1 },
+  { name: 'detail_img', maxCount: 10 },
+]), updateProduct); // Update Product (owner only)
 router.delete("/:id", authenticate, deleteProduct); // Delete Product (owner only)
 // router.patch removed: status can be updated via PUT /:id
 

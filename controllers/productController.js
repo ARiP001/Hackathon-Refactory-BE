@@ -106,8 +106,36 @@ const updateProduct = async (req, res) => {
     if (product.uuid !== requesterUserId) {
       return res.status(403).json({ message: "Forbidden: you are not the owner of this product" });
     }
+
+    // Handle file uploads for images
+    let highlightUrl = product.highlight_img; // Keep existing if no new file
+    let detailUrls = product.detail_img || []; // Keep existing if no new files
+
+    // Handle highlight image upload
+    const highlightFile = Array.isArray(req.files?.highlight_img) ? req.files.highlight_img[0] : undefined;
+    if (highlightFile) {
+      const uploaded = await uploadBufferToCloudinary(highlightFile.buffer, { folder: 'products/highlight' });
+      highlightUrl = uploaded.secure_url;
+    }
+
+    // Handle detail images upload
+    const detailFiles = Array.isArray(req.files?.detail_img) ? req.files.detail_img : [];
+    if (detailFiles && detailFiles.length > 0) {
+      const uploads = await Promise.all(detailFiles.map(f => uploadBufferToCloudinary(f.buffer, { folder: 'products/detail' })));
+      detailUrls = uploads.map(u => u.secure_url);
+    }
+
+    // Prepare update data
+    const updateData = { ...req.body };
+    if (highlightUrl !== product.highlight_img) {
+      updateData.highlight_img = highlightUrl;
+    }
+    if (detailUrls !== product.detail_img) {
+      updateData.detail_img = detailUrls;
+    }
+
     // Update
-    await product.update(req.body);
+    await product.update(updateData);
     // Return
     return res.status(200).json({
       message: "success",
