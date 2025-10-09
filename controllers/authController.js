@@ -126,7 +126,7 @@ async function register(req, res, next) {
       process.env.JWT_EMAIL_SECRET || process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-    const verifyLink = `http://localhost:${process.env.PORT}/auth/verify?token=${emailToken}`;
+    const verifyLink = `http://aduhay-sulitnyo-v2-0.hackathon.sev-2.com/auth/verify?token=${emailToken}`;
 
     await transporter.sendMail({
       from: `Verifikasi Akun <${process.env.EMAIL_USER}>`,
@@ -250,7 +250,7 @@ async function resendVerification(req, res, next) {
       process.env.JWT_EMAIL_SECRET || process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-    const verifyLink = `http://localhost:${process.env.PORT}/auth/verify?token=${emailToken}`;
+    const verifyLink = `http://aduhay-sulitnyo-v2-0.hackathon.sev-2.com/auth/verify?token=${emailToken}`;
 
     await transporter.sendMail({
       from: `Verifikasi Akun <${process.env.EMAIL_USER}>`,
