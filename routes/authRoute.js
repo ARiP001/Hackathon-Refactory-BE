@@ -4,6 +4,7 @@ const {
   register,
   login,
   refresh,
+  logout,
   verifyEmail,
   resendVerification,
   updateProfile,
@@ -15,6 +16,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post("/register", register);
 router.post("/login", login);
 router.post("/refresh", refresh);
+router.post("/logout", authenticate, logout);
 router.get("/verify", verifyEmail);
 router.post("/resend", resendVerification);
 router.patch("/profile", authenticate, upload.any(), updateProfile);

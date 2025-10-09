@@ -366,10 +366,34 @@ async function patchBaseLocation(req, res, next) {
   }
 }
 
+async function logout(req, res, next) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await User.findOne({ where: { uuid: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Clear the refresh token from the database
+    await user.update({ refresh_token: null });
+
+    return res.json({
+      message: "Logout successful"
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register,
   login,
   refresh,
+  logout,
   listUsers,
   verifyEmail,
   resendVerification,
