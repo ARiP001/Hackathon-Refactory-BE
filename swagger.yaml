@@ -13,10 +13,10 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
+  - url: http://aduhay-sulitnyo-v2-0.hackathon.sev-2.com
+    description: Production server
   - url: http://localhost:5000
     description: Development server
-  - url: https://aduhay-sulitnyo-v2-0.hackathon.sev-2.com
-    description: Production server
 
 tags:
   - name: Authentication
