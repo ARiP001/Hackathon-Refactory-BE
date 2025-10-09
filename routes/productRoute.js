@@ -9,12 +9,14 @@ const {
     deleteProduct,
     getProductsByUserId,
     getProductsBySearch,
+    getAllCategories,
  } = productController;
 const { authenticate } = require('../middleware/authJwt');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get("/", getAllProducts); 
+router.get("/categories", getAllCategories); // Get All Categories
 router.post(
   "/",
   authenticate,

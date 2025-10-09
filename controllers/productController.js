@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const Category = require("../models/Category");
 
 const getAllProducts = async (req, res) => {
   try {
@@ -280,6 +281,21 @@ const getProductsBySearch = async (req, res) => {
   }
 };
 
+const getAllCategories = async (req, res) => {
+  try {
+    const categories = await Category.findAll({
+      attributes: ['category_id', 'category_name', 'category_icon']
+    });
+    
+    return res.status(200).json({
+      message: "success",
+      data: categories,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -288,5 +304,6 @@ module.exports = {
   deleteProduct,
   getProductsByUserId,
   getProductsBySearch,
+  getAllCategories,
   // upload,
 };

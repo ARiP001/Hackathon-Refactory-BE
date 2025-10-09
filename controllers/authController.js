@@ -82,7 +82,7 @@ function signAccessToken(user) {
   return jwt.sign(
     { sub: user.uuid, email: user.email, username: user.username },
     process.env.JWT_ACCESS_SECRET,
-    { expiresIn: "15d" }
+    { expiresIn: "3h" }
   );
 }
 
