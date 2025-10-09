@@ -1,0 +1,1546 @@
+openapi: 3.0.3
+info:
+  title: API Plana - Preloved E-Commerce
+  description: |
+    API untuk platform e-commerce preloved items dengan fitur lengkap untuk user management, 
+    product management, shopping cart, dan transaction processing.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@plana.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://aduhay-sulitnyo-v2-0.hackathon.sev-2.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and profile management
+  - name: Products
+    description: Product management and search
+  - name: Cart
+    description: Shopping cart operations
+  - name: Transactions
+    description: Transaction and purchase management
+  - name: Users
+    description: User management
+
+paths:
+  /:
+    get:
+      tags:
+        - General
+      summary: Health check
+      description: Check if the API is running
+      responses:
+        '200':
+          description: API is running
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "BE ready dipake"
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account with email verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+                - phone_number
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+                  example: "john_doe"
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+                phone_number:
+                  type: string
+                  example: "+6281234567890"
+      responses:
+        '201':
+          description: Registration successful, verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email verifikasi terkirim! Cek inbox kamu."
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict - email or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and return access tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                password:
+                  type: string
+                  example: "password123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uuid:
+                    type: string
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                  username:
+                    type: string
+                    example: "john_doe"
+                  email:
+                    type: string
+                    example: "john@example.com"
+                  accessToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  refreshToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          description: Bad request - missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - email not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Get new access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '400':
+          description: Bad request - refresh token required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/verify:
+    get:
+      tags:
+        - Authentication
+      summary: Verify email
+      description: Verify user email with token
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Email verification token
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<h2>Email john@example.com berhasil diverifikasi 🎉</h2>"
+        '400':
+          description: Invalid or expired token
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "Link verifikasi tidak valid atau sudah kadaluarsa"
+
+  /auth/resend:
+    post:
+      tags:
+        - Authentication
+      summary: Resend verification email
+      description: Resend email verification link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+      responses:
+        '200':
+          description: Verification email resent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email verifikasi dikirim ulang. Cek inbox kamu."
+        '400':
+          description: Bad request or email already verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/profile:
+    patch:
+      tags:
+        - Authentication
+      summary: Update user profile
+      description: Update user profile information and profile picture
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "john_doe_updated"
+                email:
+                  type: string
+                  format: email
+                  example: "john.updated@example.com"
+                password:
+                  type: string
+                  example: "newpassword123"
+                gender:
+                  type: string
+                  enum: [male, female, other]
+                  example: "male"
+                base_location:
+                  type: string
+                  example: '["Jakarta", "Indonesia"]'
+                phone_number:
+                  type: string
+                  example: "+6281234567890"
+                profile_pict:
+                  type: string
+                  format: binary
+                  description: Profile picture file
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Profile updated"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Get list of all users (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    uuid:
+                      type: string
+                      example: "123e4567-e89b-12d3-a456-426614174000"
+                    username:
+                      type: string
+                      example: "john_doe"
+                    email:
+                      type: string
+                      example: "john@example.com"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Get all products
+      description: Retrieve all available products
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Products
+      summary: Create new product
+      description: Create a new product listing
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - name
+                - category_id
+                - price
+                - condition
+                - total_qty
+              properties:
+                  name:
+                    type: string
+                    example: "Vintage Denim Jacket"
+                  description:
+                    type: string
+                    example: "Beautiful vintage denim jacket in excellent condition"
+                  category_id:
+                    type: string
+                    example: "clothing"
+                  price:
+                    type: number
+                    example: 150000
+                  condition:
+                    type: string
+                    enum: [like new, good, so so, bad, broken]
+                    example: "good"
+                  total_qty:
+                    type: integer
+                    example: 1
+                  highlight_img:
+                    type: string
+                    format: binary
+                    description: Main product image
+                  detail_img:
+                    type: array
+                    items:
+                      type: string
+                      format: binary
+                    description: Additional product images
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/search:
+    get:
+      tags:
+        - Products
+      summary: Search products
+      description: Search products with filters
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search query
+          example: "denim jacket"
+        - name: category_id
+          in: query
+          schema:
+            type: string
+          description: Category filter
+          example: "clothing"
+        - name: min_price
+          in: query
+          schema:
+            type: number
+          description: Minimum price filter
+          example: 100000
+        - name: max_price
+          in: query
+          schema:
+            type: number
+          description: Maximum price filter
+          example: 500000
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/user/{user_id}:
+    get:
+      tags:
+        - Products
+      summary: Get products by user
+      description: Get all products listed by a specific user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User UUID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '200':
+          description: User's products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID
+      description: Get detailed information about a specific product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+          example: "prod_123"
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Products
+      summary: Update product
+      description: Update product information (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+          example: "prod_123"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Updated Product Name"
+                description:
+                  type: string
+                  example: "Updated product description"
+                category_id:
+                  type: string
+                  example: "clothing"
+                price:
+                  type: number
+                  example: 200000
+                condition:
+                  type: string
+                  enum: [like new, good, so so, bad, broken]
+                  example: "like new"
+                total_qty:
+                  type: integer
+                  example: 2
+                highlight_img:
+                  type: string
+                  format: binary
+                  description: New main product image
+                detail_img:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: New additional product images
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Products
+      summary: Delete product
+      description: Delete a product (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Product ID
+          example: "prod_123"
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not the owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cart:
+    get:
+      tags:
+        - Cart
+      summary: Get user's cart
+      description: Get all items in the user's shopping cart
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cart items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CartItem'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Cart
+      summary: Add item to cart
+      description: Add a product to the shopping cart
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_id
+                - cart_qty
+              properties:
+                product_id:
+                  type: string
+                  example: "prod_123"
+                cart_qty:
+                  type: integer
+                  minimum: 1
+                  example: 2
+      responses:
+        '201':
+          description: Item added to cart successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Item added to cart successfully"
+                  data:
+                    $ref: '#/components/schemas/CartItem'
+        '200':
+          description: Cart updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cart updated successfully"
+                  data:
+                    $ref: '#/components/schemas/CartItem'
+        '400':
+          description: Bad request or insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Cart
+      summary: Clear cart
+      description: Remove all items from the shopping cart
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cart cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cart cleared successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cart/{cart_id}:
+    put:
+      tags:
+        - Cart
+      summary: Update cart item
+      description: Update quantity of a cart item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cart_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Cart item ID
+          example: "cart_123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cart_qty
+              properties:
+                cart_qty:
+                  type: integer
+                  minimum: 1
+                  example: 3
+      responses:
+        '200':
+          description: Cart item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cart item updated successfully"
+                  data:
+                    $ref: '#/components/schemas/CartItem'
+        '400':
+          description: Bad request or insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cart item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Cart
+      summary: Remove cart item
+      description: Remove a specific item from the cart
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cart_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Cart item ID
+          example: "cart_123"
+      responses:
+        '200':
+          description: Item removed from cart successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Item removed from cart successfully"
+                  data:
+                    $ref: '#/components/schemas/CartItem'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Cart item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions:
+    post:
+      tags:
+        - Transactions
+      summary: Create transaction from cart
+      description: Create a transaction by checking out all items in the cart
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - payment_type
+              properties:
+                payment_type:
+                  type: string
+                  enum: [Cod, cash, Digital]
+                  example: "Digital"
+      responses:
+        '201':
+          description: Transaction completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Transaction completed successfully"
+                  data:
+                    type: object
+                    properties:
+                      transaction_id:
+                        type: string
+                        example: "trans_123"
+                      total_amount:
+                        type: number
+                        example: 300000
+                      payment_type:
+                        type: string
+                        example: "Digital"
+                      items_count:
+                        type: integer
+                        example: 2
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TransactionItem'
+        '400':
+          description: Bad request or cart is empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction history
+      description: Get user's transaction history
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/direct:
+    post:
+      tags:
+        - Transactions
+      summary: Direct purchase
+      description: Purchase a product directly without adding to cart
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_id
+                - quantity
+                - payment_type
+              properties:
+                product_id:
+                  type: string
+                  example: "prod_123"
+                quantity:
+                  type: integer
+                  minimum: 1
+                  example: 2
+                payment_type:
+                  type: string
+                  enum: [Cod, cash, Digital]
+                  example: "Digital"
+      responses:
+        '201':
+          description: Direct purchase completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Direct purchase completed successfully"
+                  data:
+                    type: object
+                    properties:
+                      transaction_id:
+                        type: string
+                        example: "trans_123"
+                      product_name:
+                        type: string
+                        example: "Vintage Denim Jacket"
+                      quantity:
+                        type: integer
+                        example: 2
+                      unit_price:
+                        type: number
+                        example: 150000
+                      total_amount:
+                        type: number
+                        example: 300000
+                      payment_type:
+                        type: string
+                        example: "Digital"
+        '400':
+          description: Bad request or insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/summary:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction summary
+      description: Get user's transaction statistics and summary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Transaction summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      total_transactions:
+                        type: integer
+                        example: 15
+                      total_spent:
+                        type: number
+                        example: 2500000
+                      payment_breakdown:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            payment_type:
+                              type: string
+                              example: "Digital"
+                            count:
+                              type: integer
+                              example: 10
+                            total:
+                              type: number
+                              example: 2000000
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{transaction_id}:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction by ID
+      description: Get detailed information about a specific transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Transaction ID
+          example: "trans_123"
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/Transaction'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Transactions
+      summary: Cancel transaction
+      description: Cancel a transaction and restore product stock
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Transaction ID
+          example: "trans_123"
+      responses:
+        '200':
+          description: Transaction cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Transaction cancelled successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        uuid:
+          type: string
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          example: "john_doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        gender:
+          type: string
+          enum: [male, female, other]
+          example: "male"
+        base_location:
+          type: array
+          items:
+            type: string
+          example: ["Jakarta", "Indonesia"]
+        profile_pict:
+          type: string
+          example: "https://cloudinary.com/image/upload/v123/profile.jpg"
+        phone_number:
+          type: string
+          example: "+6281234567890"
+
+    Product:
+      type: object
+      properties:
+        product_id:
+          type: string
+          example: "prod_123"
+        uuid:
+          type: string
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        category_id:
+          type: string
+          example: "clothing"
+        name:
+          type: string
+          example: "Vintage Denim Jacket"
+        description:
+          type: string
+          example: "Beautiful vintage denim jacket in excellent condition"
+        highlight_img:
+          type: string
+          example: "https://cloudinary.com/image/upload/v123/highlight.jpg"
+        detail_img:
+          type: array
+          items:
+            type: string
+          example: ["https://cloudinary.com/image/upload/v123/detail1.jpg", "https://cloudinary.com/image/upload/v123/detail2.jpg"]
+        price:
+          type: number
+          example: 150000
+        condition:
+          type: string
+          enum: [like new, good, so so, bad, broken]
+          example: "good"
+        status:
+          type: string
+          enum: [available, sold]
+          example: "available"
+        total_qty:
+          type: integer
+          example: 1
+        avail_qty:
+          type: integer
+          example: 1
+
+    CartItem:
+      type: object
+      properties:
+        cart_id:
+          type: string
+          example: "cart_123"
+        user_id:
+          type: string
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        product_id:
+          type: string
+          example: "prod_123"
+        cart_qty:
+          type: integer
+          example: 2
+        Product:
+          type: object
+          properties:
+            product_id:
+              type: string
+              example: "prod_123"
+            name:
+              type: string
+              example: "Vintage Denim Jacket"
+            price:
+              type: number
+              example: 150000
+            highlight_img:
+              type: string
+              example: "https://cloudinary.com/image/upload/v123/highlight.jpg"
+            avail_qty:
+              type: integer
+              example: 5
+
+    Transaction:
+      type: object
+      properties:
+        history_id:
+          type: string
+          example: "trans_123"
+        uuid:
+          type: string
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        product_id:
+          type: string
+          example: "prod_123"
+        quantity:
+          type: integer
+          example: 2
+        price:
+          type: number
+          example: 150000
+        payment_type:
+          type: string
+          enum: [Cod, cash, Digital]
+          example: "Digital"
+        Product:
+          type: object
+          properties:
+            product_id:
+              type: string
+              example: "prod_123"
+            name:
+              type: string
+              example: "Vintage Denim Jacket"
+            highlight_img:
+              type: string
+              example: "https://cloudinary.com/image/upload/v123/highlight.jpg"
+            description:
+              type: string
+              example: "Beautiful vintage denim jacket in excellent condition"
+
+    TransactionItem:
+      type: object
+      properties:
+        history_id:
+          type: string
+          example: "trans_123"
+        uuid:
+          type: string
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        product_id:
+          type: string
+          example: "prod_123"
+        quantity:
+          type: integer
+          example: 2
+        price:
+          type: number
+          example: 150000
+        payment_type:
+          type: string
+          enum: [Cod, cash, Digital]
+          example: "Digital"
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Error message"
+      required:
+        - message
+
+security:
+  - bearerAuth: []
